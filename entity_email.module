@@ -1,0 +1,146 @@
+<?php
+
+/**
+ * @file
+ * Contains entity_email.module..
+ */
+
+use Drupal\Core\Routing\RouteMatchInterface;
+use Drupal\paragraphs\Entity\Paragraph;
+use Drupal\file\Entity\File;
+/**
+ * Implements hook_help().
+ */
+function entity_email_help($route_name, RouteMatchInterface $route_match) {
+  switch ($route_name) {
+    // Main module help for the entity_email module.
+    case 'help.page.entity_email':
+      $output = '';
+      $output .= '<h3>' . t('About') . '</h3>';
+      $output .= '<p>' . t('This module will provide email functionality for Entity') . '</p>';
+      return $output;
+
+    default:
+  }
+}
+
+/**
+ * Implements hook_mail().
+ */
+function entity_email_mail($key, &$message, $params) {
+  $options = array(
+    'langcode' => $message['langcode'],
+  );
+
+  switch ($key) {
+    case 'entity_email':
+      $message['from'] = \Drupal::config('system.site')->get('mail');
+      $message['body'][] = $params['message'];
+      break;
+
+  }
+
+}
+
+/**
+ * Implements hook_mail_alter().
+ */
+function entity_email_mail_alter(&$message) {
+  switch ($message['key']) {
+    case 'entity_email':
+      $message['headers']['Content-Type'] = 'text/html; charset=UTF-8; format=flowed; delsp=yes';
+      $message['subject'] = $message['params']['subject'];
+      break;
+  }
+}
+
+/**
+ * Implements hook_preprocess_node().
+ */
+function entity_email_preprocess_node(&$variables) {
+
+    if (isset($variables['view_mode']) && $variables['view_mode'] == 'emailable') {
+
+        //For the pdf file field
+        $variables['fileInfo'] = null;
+        /* @var \Drupal\node\Entity\Node $node */
+        $node = $variables['node'];
+        $pdfList = $node->get('field_para_pdf');
+
+
+        $arrFileInfo = array();
+
+        /* @var \Drupal\entity_reference_revisions\Plugin\Field\FieldType\EntityReferenceRevisionsItem $field */
+        foreach ($pdfList as $field) {
+            $paraId = $field->getValue()['target_id'];
+            $paragraph = Paragraph::load($paraId);
+            $fileID = $paragraph->get('field_pdf_file')['0']->getValue()['target_id'];
+            $fileDescription = $paragraph->field_description->value;
+
+            $file = File::load($fileID);
+            $fileDesc = new stdClass();
+            $fileDesc->fileName = $file->getFilename();
+            $fileDesc->fileSize = $file->getSize();
+            $fileDesc->fileDescription = $fileDescription;
+            $arrFileInfo[] = $fileDesc;
+
+        }
+
+        if (count($arrFileInfo)) {
+            $variables['fileInfo'] = $arrFileInfo;
+        }
+
+        //For the video field
+        $variables['videoInfo'] = null;
+        /* @var \Drupal\node\Entity\Node $node */
+        $node = $variables['node'];
+        $videoList = $node->get('field_para_video');
+
+
+        $arrVideoInfo = array();
+
+        /* @var \Drupal\entity_reference_revisions\Plugin\Field\FieldType\EntityReferenceRevisionsItem $field */
+        foreach ($videoList as $field) {
+            $videoParaId = $field->getValue()['target_id'];
+            $paragraph = Paragraph::load($videoParaId);
+            $videoID = $paragraph->get('field_yourtube_video_id')['0']->getValue();
+
+            $youTubeVideo = new stdClass();
+            $youTubeVideo->description = $paragraph->field_description->value;
+
+            $youTubeVideo->videoUrl = $paragraph->get('field_yourtube_video_id')->value;
+            $arrVideoInfo[] = $youTubeVideo;
+        }
+
+        if (count($arrVideoInfo)) {
+            $variables['videoInfo'] = $arrVideoInfo;
+        }
+
+        //For the link field
+        $variables['linkInfo'] = null;
+        /* @var \Drupal\node\Entity\Node $node */
+        $node = $variables['node'];
+        $linkList = $node->get('field_para_link');
+
+
+        $arrLinkInfo = array();
+
+        /* @var \Drupal\entity_reference_revisions\Plugin\Field\FieldType\EntityReferenceRevisionsItem $field */
+        foreach ($linkList as $field) {
+            $linkParaId = $field->getValue()['target_id'];
+            $paragraph = Paragraph::load($linkParaId);
+            $linkID = $paragraph->get('field_link')['0']->getValue();
+
+            $link = new stdClass();
+            $link->description = $paragraph->field_description->value;
+
+            $link->linkUrl = $paragraph->get('field_link')['0']->getValue()['uri'];
+            $arrLinkInfo[] = $link;
+        }
+
+        if (count($arrLinkInfo)) {
+            $variables['linkInfo'] = $arrLinkInfo;
+        }
+
+    }
+}
